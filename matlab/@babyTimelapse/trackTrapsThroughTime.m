@@ -32,7 +32,7 @@ function trackTrapsThroughTime(cTimelapse,timepoints,preserve_trap_info,image_re
 % unless preserve_trap_info is true, in which case only those it is
 % instantiated only when it is empty or absent.
 %
-% Uses cTimelapse.channelForTrapDetection channel for cross correlation.
+% Uses cTimelapse.trapTemplateChannel channel for cross correlation.
 %
 % If traps are not present (cTimelapse.trapsPresent = false) then no drift
 % is measured and it just instantiates the trapInfo structure, setting the
@@ -76,7 +76,7 @@ if cTimelapse.trapsPresent
     
     timepoint = timepoints(1);
     % take central region of first timepoint for registration.
-    reg_im=cTimelapse.returnSingleTimepoint(timepoint,cTimelapse.channelForTrapDetection);
+    reg_im=cTimelapse.returnSingleTimepoint(timepoint,cTimelapse.trapTemplateChannel);
     bb=floor(size(reg_im)*(1-image_frac));
     accum_col=0;
     accum_row=0;
@@ -100,7 +100,7 @@ if cTimelapse.trapsPresent
         % Trigger the TimepointChanged event for babyLogging
         babyLogging.changeTimepoint(cTimelapse,timepoint);
         
-        new_im=cTimelapse.returnSingleTimepoint(timepoint,cTimelapse.channelForTrapDetection);
+        new_im=cTimelapse.returnSingleTimepoint(timepoint,cTimelapse.trapTemplateChannel);
         
         new_im=new_im(bb(1):end-bb(1),bb(2):end-bb(2));
         new_im_fft2 = fft2(new_im/mean(new_im(:)));

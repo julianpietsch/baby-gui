@@ -30,16 +30,14 @@ classdef babyExperiment < MemAware
         chamberMap = struct() % fields specify named groups of positions for final results
         shouldLog %a parameter that tells the logger whether it should do things 
 
-        %the following all match their equivalents in babyTimelapse and
-        %are popualted and used to populate the timelapseTrap fields when calling
-        %loadTimelapse
-        searchString
+        % The following all match their equivalents in babyTimelapse and
+        % are populated when calling createTimelapsePositions
         pixelSize
         trapsPresent % whether or not images should be split into traps
         trapTemplates % templates and associated info for identifying traps; empty if there are no traps
+        trapTemplateChannel % channel index for the trap template
         image_flipud
         image_rotation
-        timepointsToLoad
         timepointsToProcess
         trackTrapsOverwrite
         channelNames %this has the list of the channel names  
@@ -291,7 +289,7 @@ classdef babyExperiment < MemAware
                 '"babyBrain" must be specified as a "BabyBrain" object');
             % Copy only the configuration
             cExperiment.babyBrain.channelMap = val.channelMap;
-            cTimelapse.babyBrain.updateServerDetails(true);
+            cExperiment.babyBrain.updateServerDetails(true);
             cExperiment.babyBrain.config = val.config;
         end
         
@@ -417,6 +415,12 @@ classdef babyExperiment < MemAware
         end
                 
         cExperiment = loadFrom(cExperiment_filepath,answer)
+    end
+
+    methods (Access=protected)
+        function cTimelapse = newTimelapse(cExperiment,pos)
+            cTimelapse = babyTimelapse(fullfile(cExperiment.rootFolder,cExperiment.dirs{pos}));
+        end
     end
 end
 

@@ -79,8 +79,8 @@ classdef babyExperimentFileSeries < babyExperiment
             cExperiment.metadata.acqFile = cExperiment.rootFolder; % For ID
             cExperiment.metadata.acq = struct(...
                 'channels',struct('names',{cExperiment.channelNames},...
-                'zsect',zeros(size(cExperiment.channelNames))),...
-                'zsections', struct('sections',1),'positions',zeros(0,1));
+                'zsect',(maxnz>1)*ones(size(cExperiment.channelNames))),...
+                'zsections',struct('sections',maxnz),'positions',zeros(0,1));
             
             if isfield(reader.meta,'posTimes')
                 % Want times in minutes
@@ -117,7 +117,6 @@ classdef babyExperimentFileSeries < babyExperiment
                 'a date char vector must be specified to continue');
             assert(~isempty(regexp(cExperiment.metadata.date,'\d{4}-\d{2}-\d{2}','once')),...
                 'a valid date must be specified to continue');
-            
         end
     end
     
@@ -166,6 +165,15 @@ classdef babyExperimentFileSeries < babyExperiment
                 load_structure.load_class_name = 'babyExperimentFileSeries';
             end
             cExperiment = loadobj@babyExperiment(load_structure);
+        end
+    end
+
+    methods (Access=protected)
+        function cTimelapse = newTimelapse(cExperiment,pos)
+            cTimelapse = babyTimelapseFileSeries(...
+                cExperiment.rootFolder,pos,...
+                'channelNames',cExperiment.channelNames,...
+                cExperiment.readerArgs{:});
         end
     end
 end

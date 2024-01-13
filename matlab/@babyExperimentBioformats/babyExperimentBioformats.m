@@ -40,6 +40,7 @@ classdef babyExperimentBioformats < babyExperiment
             ip.addRequired('savefolder',@(x) ischar(x) && isrow(x));
             ip.addParameter('StackAlong',[],@(x) isempty(x) || ismember(x,{'T','Z','C'}));
             ip.addParameter('PosesPerStack',[],@(x) isempty(x) || (isposint(x) && isscalar(x)));
+            ip.addParameter('date','',@(x) ischar(x) && isrow(x));
             ip.parse(imgfile,savefolder,varargin{:});
             
             cExperiment.rootFolder = imgfile;
@@ -141,8 +142,8 @@ classdef babyExperimentBioformats < babyExperiment
             cExperiment.metadata.acqFile = strjoin(imgfile,';'); % For ID
             cExperiment.metadata.acq = struct(...
                 'channels',struct('names',{cExperiment.channelNames},...
-                'zsect',zeros(size(cExperiment.channelNames))),...
-                'zsections', struct('sections',1),'positions',zeros(0,1));
+                'zsect',(maxnz>1)*ones(size(cExperiment.channelNames))),...
+                'zsections',struct('sections',maxnz),'positions',zeros(0,1));
             
             cExperiment.metadata.originalPosNames = [posNames{:}];
             
@@ -153,17 +154,21 @@ classdef babyExperimentBioformats < babyExperiment
                 cExperiment.metadata.posTimes(p,1:numel(posTimes{p})) = posTimes{p};
             end
             
-            % See if we can determine a date from file name
-            date_matches = regexp(cExperiment.metadata.acqFile,{...
-                '\D(\d{4})(\d{2})(\d{2})\D','\D(\d{4})\D(\d{2})\D(\d{2})\D'},'tokens');
-            is_matching = ~cellfun(@isempty,date_matches);
-            if any(is_matching)
-                date_match = date_matches{find(is_matching,1)};
-                cExperiment.metadata.date = strjoin(date_match{1},'-');
+            if isempty(ip.Results.date)
+                % See if we can determine a date from file name
+                date_matches = regexp(cExperiment.metadata.acqFile,{...
+                    '\D(\d{4})(\d{2})(\d{2})\D','\D(\d{4})\D(\d{2})\D(\d{2})\D'},'tokens');
+                is_matching = ~cellfun(@isempty,date_matches);
+                if any(is_matching)
+                    date_match = date_matches{find(is_matching,1)};
+                    cExperiment.metadata.date = strjoin(date_match{1},'-');
+                else
+                    date_match = inputdlg({'Enter date of acquistion in YYYY-MM-DD format:'},'Enter date');
+                    assert(~isempty(date_match),'a date must be specified to continue');
+                    cExperiment.metadata.date = date_match{1};
+                end
             else
-                date_match = inputdlg({'Enter date of acquistion in YYYY-MM-DD format:'},'Enter date');
-                assert(~isempty(date_match),'a date must be specified to continue');
-                cExperiment.metadata.date = date_match{1};
+                cExperiment.metadata.date = ip.Results.date;
             end
             assert(ischar(cExperiment.metadata.date) && isrow(cExperiment.metadata.date),...
                 'a date char vector must be specified to continue');
@@ -218,6 +223,16 @@ classdef babyExperimentBioformats < babyExperiment
                 load_structure.load_class_name = 'babyExperimentBioformats';
             end
             cExperiment = loadobj@babyExperiment(load_structure);
+        end
+    end
+
+    methods (Access=protected)
+        function cTimelapse = newTimelapse(cExperiment,pos)
+            cTimelapse = babyTimelapseBioformats(...
+                cExperiment.posImgFiles{pos},...
+                cExperiment.posImgIndices(pos),...
+                cExperiment.stackingArgs,...
+                cExperiment.channelNames);
         end
     end
 end

@@ -1,4 +1,18 @@
 classdef ImageReaderFileSeries < ImageReader
+    %ImageReaderFileSeries Read time lapses stored as file series
+    %
+    %   ImageReaderFileSeries(...,'pixelSize',PXSZ) specifies a pixel size
+    %   of PXSZ microns for the data set.
+    %
+    %   ImageReaderFileSeries(...,'timeInterval',INT) specifies the
+    %   expected or average time in minutes that has elapsed between
+    %   consecutive frames.
+    %
+    %   ImageReaderFileSeries(...,'times',TIMES) specifies a vector of
+    %   times in minutes for each frame in the time lapse. Alternatively,
+    %   it can be a matrix of times with a row for each point/position and
+    %   a column for each frame in the time-lapse data set.
+
     properties (Dependent, SetAccess=private)
         npos
         posNames
@@ -46,7 +60,7 @@ classdef ImageReaderFileSeries < ImageReader
             ')','\\)';...
             '<t>','(?<t>\\d+)';...
             '<c>','(?<c>\\d+)';...
-            '<z>','(?<z>\\d+)';...
+            '<z>','(?<z>\\d*)';... % star allows for Z sectioning off case
             '<p>','(?<p>\\d+)';...
             '<pos>','(?<pos>[^./\\\\]+)';...
             '<channel>','(?<channel>[^./\\\\]+)'}
@@ -54,6 +68,7 @@ classdef ImageReaderFileSeries < ImageReader
     
     methods
         function this = ImageReaderFileSeries(root,varargin)
+            
             if nargin<1, return; end
             
             ip = inputParser;
@@ -233,7 +248,11 @@ classdef ImageReaderFileSeries < ImageReader
             % Check for Z index
             imgZ = [];
             if isfield(matches,'z')
-                imgZ = str2double({matches.z});
+                imgZ = {matches.z};
+                % If Z is empty, then we assume Z sectioning is off for
+                % this channel and set Z = 1
+                imgZ(cellfun(@isempty,imgZ)) = {'1'};
+                imgZ = str2double(imgZ);
                 assert(all(~isnan(imgZ) & ...
                     round(imgZ)==imgZ & imgZ>=0),...
                     'Z indices must be valid non-negative integers');

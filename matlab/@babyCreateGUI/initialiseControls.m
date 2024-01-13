@@ -158,6 +158,7 @@ ctrls.usetraps = uicontrol('Parent',trapbox,'Style','checkbox',...
 trapboxHghts(end+1) = sh;
 
 trapchannel = 1;
+trapzsect = 1;
 
 % Trap area selection
 drawbox = uix.HBox('Parent',trapbox,'Padding',0,'Spacing',sp);
@@ -186,19 +187,19 @@ metaboxheights = [];
 % Date
 hbx = uix.HBox('Parent',metabox,'Padding',0,'Spacing',sp);
 uiLabel(hbx,'Date');
-ctrls.date = uicontrol('Parent',hbx,'Style','edit');
+ctrls.date = uicontrol('Parent',hbx,'Style','edit','Callback',@formatdate);
 metaboxheights(end+1) = sh;
 
 % Times/time interval
 hbx = uix.HBox('Parent',metabox,'Padding',0,'Spacing',sp);
 uiLabel(hbx,'Time interval');
-ctrls.date = uicontrol('Parent',hbx,'Style','edit');
+ctrls.timeinterval = uicontrol('Parent',hbx,'Style','edit');
 metaboxheights(end+1) = sh;
 
 % Pixel size
 hbx = uix.HBox('Parent',metabox,'Padding',0,'Spacing',sp);
 uiLabel(hbx,'Pixel size');
-ctrls.date = uicontrol('Parent',hbx,'Style','edit');
+ctrls.pixelsize = uicontrol('Parent',hbx,'Style','edit','String',1);
 metaboxheights(end+1) = sh;
 
 % Channel names
@@ -292,28 +293,25 @@ imgfile = posImgFiles;
 dostacking = ctrls.stackingon.Value;
 stackingdim = ctrls.stackingdim.String{ctrls.stackingdim.Value};
 stackingpps = pps_values(ctrls.stackingpps.Value);
-doflip = ctrls.flip.Value;
+doflip = logical(ctrls.flip.Value);
 rot = 90*rotVals(ctrls.rot.Value);
-usetraps = ctrls.usetraps.Value;
+usetraps = logical(ctrls.usetraps.Value);
+pixelsize = str2double(ctrls.pixelsize.String);
+exptdate = ctrls.date.String;
 
 close(fig);
 
 if dostacking
     this.cExperiment = babyExperimentBioformats(imgfile,savedir,...
-        'StackAlong',stackingdim,'PosesPerStack',stackingpps);
+        'StackAlong',stackingdim,'PosesPerStack',stackingpps,'date',exptdate);
 else
-    this.cExperiment = babyExperimentBioformats(imgfile,savedir);
+    this.cExperiment = babyExperimentBioformats(imgfile,savedir,'date',exptdate);
 end
-if usetraps
-  this.cExperiment.trapTemplates = struct('positiveExamples',trapImg);
-end
-this.cExperiment.createTimelapsePositions('none','all',[],rot,[],usetraps,doflip);
-for p=1:numel(this.cExperiment.dirs)
-    cTimelapse = this.cExperiment.loadCurrentTimelapse(p);
-    cTimelapse.channelForTrapDetection = ...
-        find(strcmp(cTimelapse.channelNames,trapchannel),1);
-    this.cExperiment.saveTimelapseExperiment;
-end
+
+this.cExperiment.createTimelapsePositions(...
+    'PixelSize',pixelsize,'ImageRotation',rot,'FlipImage',doflip,...
+    'TrapsPresent',usetraps,'TrapTemplate',trapImg,...
+    'TrapTemplateChannel',sprintf('%s_%03u',trapchannel,trapzsect));
 
 %% Events
     function addFile(~,~)
@@ -449,6 +447,10 @@ end
             reader = ImageReaderBioformats(imgFile);
         end
         
+        if ~isempty(reader.pixelSize)
+            ctrls.pixelsize.String = num2str(reader.pixelSize);
+        end
+
         % Set reduced zoom if necessary
         zoomVal = zoom1;
         if any(reader.imageSize(1:2)>[maxImgW,maxImgH])
@@ -576,6 +578,7 @@ end
         updateTrapImg;
         ctrls.drawTrap.Enable = 'on';
         trapchannel = ctrls.channel.String{ctrls.channel.Value};
+        trapzsect = ctrls.zsect.Value;
     end
 
     function endTrapDraw(~,~)
@@ -600,6 +603,16 @@ end
             'YLim',[0.5,size(trapImg,1)+0.5]);
     end
 
+    function formatdate(~,~)
+        try
+            dt = datetime(ctrls.date.String,'Locale','system','Format','yyyy-MM-dd');
+        catch
+            errordlg('Date should be specified as "yyyy-MM-dd"');
+            return
+        end
+        ctrls.date.String = char(dt);
+    end
+
     function checkValidity(~,~)
         if isempty(reader)
             errordlg('A valid image needs to be specified');
@@ -608,6 +621,9 @@ end
         if ~isfolder(ctrls.savedir.fileName)
             errordlg('A valid save folder needs to be specified');
             return
+        end
+        if isnan(str2double(ctrls.pixelsize.String))
+            errordlg('An invalid pixel size has been specified');
         end
         uiresume(fig);
     end

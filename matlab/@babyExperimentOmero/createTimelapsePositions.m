@@ -1,5 +1,8 @@
-function createTimelapsePositions(cExperiment,searchString,positionsToLoad,pixelSize,image_rotation,timepointsToLoad,traps_present)
-% createTimelapsePositions(cExperiment,searchString,positionsToLoad,pixelSize,image_rotation,timepointsToLoad,traps_present)
+function createTimelapsePositions(cExperiment,varargin)
+%createTimelapsePositions Create babyTimelapses for each position/point
+%
+%   cExperiment.createTimelapsePositions
+% (cExperiment,searchString,positionsToLoad,pixelSize,image_rotation,timepointsToLoad,traps_present)
 %
 % goes through the folders in the rootDir of cExperiment and creates a
 % babyTimelapse object for each one, instantiating the cTimepoint
@@ -12,68 +15,38 @@ function createTimelapsePositions(cExperiment,searchString,positionsToLoad,pixel
 %
 % See also BABYTIMELAPSE.LOADTIMELAPSE
 
+ip = inputParser;
+% optional 'SearchString' is kept for consistency with parent but is
+% ignored here
+ip.addOptional('SearchString','',@(x) ischar(x) && isrow(x));
+ip.addOptional('poses',[],@(x) isempty(x) || (isnumeric(x) && isvector(x)));
+ip.KeepUnmatched = true;
+ip.parse(varargin{:});
+
+loadargs = [fieldnames(ip.Unmatched),struct2cell(ip.Unmatched)]';
+poses = ip.Results.poses;
+
 dataset = cExperiment.dataset;
 
-chNames = cExperiment.channelNames;
-if isempty(searchString)
-    ch = menu('Choose channel used in segmentation (brightfield/DIC images)',chNames);
-    searchString=chNames{ch};
-end
-
-if ischar(positionsToLoad)&&strcmp(positionsToLoad,'all')
-    positionsToLoad=1:numel(dataset.posNames);
+if isempty(poses)
+    poses=1:numel(dataset.posNames);
 end
 
 assert(all(ismember(cExperiment.dirs,dataset.posNames)),...
     'cExperiment.dirs specifies positions that do not exist in dataset');
 
-if nargin<4
-    pixelSize=[];
-end
-
-if nargin<5
-    image_rotation=[];
-end
-
-%timepoints to load functionality has been superceded by
-%timepointstoProcess, which is done after the object has been created and
-%just limits processing.
-if nargin<6
-    timepointsToLoad=[];
-end
-
-if nargin<7
-    traps_present = cExperiment.trapsPresent;
-end
-
-
-
-cExperiment.searchString=searchString;
-cExperiment.pixelSize=pixelSize;
-cExperiment.image_rotation=image_rotation;
-cExperiment.timepointsToLoad=timepointsToLoad;
-cExperiment.trapsPresent = traps_present;
 % Start adding arguments to experiment creation protocol log:
-
 cExperiment.logger.add_arg('Omero experiment name',cExperiment.rootFolder);
 cExperiment.logger.add_arg('Temporary working directory',cExperiment.saveFolder);
 
-if isempty(cExperiment.timepointsToLoad)
-    cExperiment.logger.add_arg('Timepoints to load','all');
-else
-    cExperiment.logger.add_arg('Timepoints to load',cExperiment.timepointsToLoad);
-end
-if ~isempty(cExperiment.pixelSize)
-    
-end
 % The other arguments are added and the protocol started after the first
 % call to loadTimelapse below...
 
 try
        
     % Load timelapses
-    for i=1:length(positionsToLoad)
-        currentPos=positionsToLoad(i);
+    for i=1:length(poses)
+        currentPos=poses(i);
         dataset.pos = cExperiment.dirs{currentPos};
         cExperiment.cTimelapse = babyTimelapseOmero(dataset,cExperiment.channelNames);
         
@@ -81,8 +54,7 @@ try
         babyLogging.changePos(cExperiment,currentPos,cExperiment.cTimelapse);
         cExperiment.cTimelapse.metadata = cExperiment.metadata;
         cExperiment.cTimelapse.metadata.posname = cExperiment.dirs{currentPos};
-        cExperiment.cTimelapse.trapTemplates = cExperiment.trapTemplates;
-        cExperiment.cTimelapse.loadTimelapse(cExperiment.searchString,cExperiment.image_rotation,cExperiment.trapsPresent,cExperiment.timepointsToLoad,cExperiment.pixelSize);
+        cExperiment.cTimelapse.loadTimelapse('',loadargs{:});
         
         % After the first call to loadTimelapse, the arguments should now all
         % be set, so start logging the creation protocol:
@@ -90,13 +62,14 @@ try
             cExperiment.pixelSize = cExperiment.cTimelapse.pixelSize;
             cExperiment.image_rotation = cExperiment.cTimelapse.image_rotation;
             cExperiment.trapsPresent = cExperiment.cTimelapse.trapsPresent;
+            cExperiment.trapTemplates = cExperiment.cTimelapse.trapTemplates;
             cExperiment.timepointsToProcess = cExperiment.cTimelapse.timepointsToProcess;
             
-            cExperiment.logger.add_arg('Default segmentation channel',cExperiment.searchString);
-            cExperiment.logger.add_arg('Traps present',cExperiment.trapsPresent);
             cExperiment.logger.add_arg('Image rotation',cExperiment.image_rotation);
             cExperiment.logger.add_arg('Pixel size',cExperiment.pixelSize);
-            cExperiment.logger.start_protocol('creating new experiment',length(positionsToLoad));
+            cExperiment.logger.add_arg('Traps present',cExperiment.trapsPresent);
+            cExperiment.logger.add_arg('')
+            cExperiment.logger.start_protocol('creating new experiment',length(poses));
         else
             if ~isequal(cExperiment.pixelSize,cExperiment.cTimelapse.pixelSize)
                 warning('pixel size differs between positions');
@@ -137,7 +110,7 @@ try
     % initialise the trapsInfo. This causes no end of confusion, so I have
     % done it here automatically.
     if ~cExperiment.trapsPresent
-        cExperiment.trackTrapsInTime(positionsToLoad);
+        cExperiment.trackTrapsInTime(poses);
     end
     
     % Finish logging protocol

@@ -42,7 +42,7 @@ classdef babyTimelapse<MemAware
                           
         trapsPresent % a boolean whether traps are present or not in the image
         trapTemplates % templates and associated info for identifying traps; empty if there are no traps
-        channelForTrapDetection = 1 % channel used in cTrapSelectDisplay to identify traps
+        trapTemplateChannel % channel used in cTrapSelectDisplay to identify traps
         
         cellsToPlot %Array indicating which cells to extract data for. row = trap num, col is cell tracking number
         timepointsProcessed %a logical array of timepoints which have been processed
@@ -452,10 +452,6 @@ classdef babyTimelapse<MemAware
             
             if size(cTimelapse.offset,1)<length(cTimelapse.channelNames)
                 cTimelapse.offset(end+1:length(cTimelapse.channelNames),:) = 0;
-            end
-            
-            if isempty(cTimelapse.channelForTrapDetection)
-                cTimelapse.channelForTrapDetection = 1;
             end
             
             if isempty(cTimelapse.scaledImSize)

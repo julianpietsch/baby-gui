@@ -75,7 +75,7 @@ try
         
         % Set channel for trap detection if specified
         if ~isempty(trapChannel)
-            cTimelapse.channelForTrapDetection = trapChannel;
+            cTimelapse.trapTemplateChannel = trapChannel;
         end
         
         if i==1
@@ -108,7 +108,7 @@ try
         
         previous_locations = cTimelapse.cTimepoint(cTimelapse.timepointsToProcess(1)).trapLocations;
         
-        cTSD = cTrapSelectDisplay(cTimelapse,cTimelapse.timepointsToProcess(1),cTimelapse.channelForTrapDetection,ExclusionZone);
+        cTSD = cTrapSelectDisplay(cTimelapse,cTimelapse.timepointsToProcess(1),cTimelapse.trapTemplateChannel,ExclusionZone);
         
         uiwait(cTSD.figure);
         

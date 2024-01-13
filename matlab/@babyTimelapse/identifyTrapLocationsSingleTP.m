@@ -93,7 +93,7 @@ blotting_image = zeros(2*[bY,bX] + 1);
 
 while max_dynamic> val_thresh
     [ypeak, xpeak] = ind2sub(size(trap_prediction_image),imax(1));
-    trap_prediction_image = BAeBYutil.PutSubStack(...
+    trap_prediction_image = BABYutil.PutSubStack(...
         trap_prediction_image,[ypeak,xpeak],{blotting_image});
     
     trapLocations(trap_index).xcenter = xpeak;

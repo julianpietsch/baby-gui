@@ -1,15 +1,26 @@
 classdef babyExperimentOmero < babyExperiment
-    % BABYEXPERIMENTOMERO a subclass of babyExperiment to hold
-    % cExperiments that access data, and are stored on, an OMERO database.
+    %BABYEXPERIMENTOMERO Subclass of babyExperiment for use with OMERO
     %
-    % See also BABYEXPERIMENT,BABYTIMELAPSEOMERO
+    %   babyExperimentOmero(DATASET) creates a new experiment for the
+    %   OmeroDataset DATASET with default experiment ID of '001'.
+    %   
+    %   babyExperimentOmero(DATASET,EXPNAME) creates a new experiment with
+    %   ID given by the char vector EXPNAME.
+    %   
+    %   babyExperimentOmero(true) creates a 'bare' experiment with no
+    %   defined fields (primarily for use by loadobj method).
+    %
+    % Code originally written by Ivan Clark and edited by Elco Bakker.
+    % Subsequently heavily modified by Julian Pietsch.
+    %
+    % See also BABYEXPERIMENT, BABYTIMELAPSEOMERO
     
     properties
         dataset % OmeroDataset object
-        fileAnnotation_id%id number of the file annotation used to save the babyExperimentOmero object in the database
-        logFileAnnotation_id%id number of the file annotation used to save the babyExperimentOmero log file in the database
-        segmentationSource='';%Flag to determine where the source data was obtained during segmentation, can be 'Omero', 'Folder' or empty (if not segmented). Data segemented from a file folder must be flipped both vertically and horizontally to match the segmentation results
-        archivedChannelNames = {};%Channel names from folder cExperiment; empty unless converted from folder cExperiment
+        fileAnnotation_id %id number of the file annotation used to save the babyExperimentOmero object in the database
+        logFileAnnotation_id %id number of the file annotation used to save the babyExperimentOmero log file in the database
+        segmentationSource='' %Flag to determine where the source data was obtained during segmentation, can be 'Omero', 'Folder' or empty (if not segmented). Data segemented from a file folder must be flipped both vertically and horizontally to match the segmentation results
+        archivedChannelNames = {} %Channel names from folder cExperiment; empty unless converted from folder cExperiment
     end
     
     properties (Dependent)
@@ -19,19 +30,6 @@ classdef babyExperimentOmero < babyExperiment
     methods
         function cExperiment = babyExperimentOmero(dataset,expName)
             %babyExperimentOmero Create a new babyExperimentOmero object
-            %   
-            %   babyExperimentOmero(DATASET) creates a new experiment for 
-            %   the OmeroDataset DATASET with default experiment ID of
-            %   '001'.
-            %   
-            %   babyExperimentOmero(DATASET,EXPNAME) creates a new
-            %   experiment with ID given by the char vector EXPNAME.
-            %   
-            %   babyExperimentOmero(true) creates a 'bare' experiment with
-            %   no defined fields (primarily for use by loadobj method).
-            %
-            % Code originally written by Ivan Clark and edited by Elco Bakker.
-            % Subsequently heavily modified by Julian Pietsch.
              
             % call super class constructor such that it does not initialise
             % anything.
@@ -176,6 +174,16 @@ classdef babyExperimentOmero < babyExperiment
                 load_structure.load_class_name = 'babyExperimentOmero';
             end
             cExperiment = loadobj@babyExperiment(load_structure);
+        end
+    end
+
+    methods (Access=protected)
+        function cTimelapse = newTimelapse(cExperiment,pos)
+            ds = cExperiment.dataset;
+            assert(all(ismember(cExperiment.dirs,ds.posNames)),...
+                'cExperiment.dirs specifies positions that do not exist in dataset');
+            ds.pos = cExperiment.dirs{pos};
+            cTimelapse = babyTimelapseOmero(ds,cExperiment.channelNames);
         end
     end
 end

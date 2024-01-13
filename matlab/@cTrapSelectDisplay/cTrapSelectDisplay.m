@@ -23,7 +23,7 @@ classdef cTrapSelectDisplay<handle
 %   identifyTrapLocationsSingleTP
 %
 % This method uses the:
-%       babyTimelapse.channelForTrapDetection
+%       babyTimelapse.trapTemplateChannel
 % channel to identify the traps by cross correlation with the images stored
 % in the cTimelapse.trapTemplates struct.
 
@@ -68,7 +68,7 @@ classdef cTrapSelectDisplay<handle
             cDisplay.timepoint=timepoint;
             
             if nargin<4 || isempty(channel)
-                cDisplay.channel=cTimelapse.channelForTrapDetection;
+                cDisplay.channel=cTimelapse.trapTemplateChannel;
             else
                 cDisplay.channel=channel;
             end
