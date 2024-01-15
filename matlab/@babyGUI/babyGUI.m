@@ -204,9 +204,10 @@ classdef babyGUI < handle
     end
     
     methods
-        function this = babyGUI(cExperiment,varargin)
+        function this = babyGUI(varargin)
             ip = inputParser;
-            ip.addRequired('cExperiment',@(x) isa(x,'babyExperiment') && isscalar(x));
+            ip.addOptional('cExperiment',[],@(x) isempty(x) || ...
+                (isa(x,'babyExperiment') && isscalar(x)));
             ip.addOptional('pos',1,@(x) (isnumeric(x) && isscalar(x)) || isempty(x));
             ip.addParameter('ImageCache',[],@(x) isempty(x) || isa(x,'ImageCache'));
             ip.addParameter('TilesContext',2,@(x) isnumeric(x) && isscalar(x) && round(x)==x && x>=0);
@@ -214,7 +215,16 @@ classdef babyGUI < handle
                 (ischar(x) && size(x,1)==1));
             ip.addParameter('CachedOverview',[],@(x) isempty(x) || ...
                 (isscalar(x) && islogical(x)));
-            ip.parse(cExperiment,varargin{:});
+            ip.parse(varargin{:});
+
+            cExperiment = ip.Results.cExperiment;
+            if isempty(cExperiment)
+                cExperiment = babyExperiment.loadFrom;
+                if isempty(cExperiment)
+                    % user probably cancelled, so return
+                    return
+                end
+            end
             
             % Save handles to cExperiment and ImageCache
             this.cExperiment = cExperiment;

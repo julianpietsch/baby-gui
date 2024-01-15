@@ -1,6 +1,6 @@
 # BABY-GUI: user interfaces that play nice with the BABY
 
-This repository contains user interfaces for Matlab that can be used to
+This repository contains user interfaces for MATLAB that can be used to
 process, annotate and curate cell lineages in time-lapse microscopy image data
 sets. The software is general and should work with any image series, but it is
 particularly powerful for images of cells in microfluidic traps or trenches.
@@ -42,3 +42,56 @@ bright-field images of budding cells through identifying overlaps. eLife.
 
 If you use this software (including these user interfaces), please cite us!
 
+## Installation
+
+### Requirements
+
+This software requires MATLAB 2016b or later with the Image Processing Toolbox
+and Parallel Computing Toolbox.
+
+Two contributed add-ons are also required:
+
+- "GUI Layout Toolbox" by David Sampson, and
+- "JSONLab: a toolbox to encode/decode JSON files" by Qianqian Fang
+
+These can be installed by navigating to the Add-On Explorer in MATLAB
+(accesible through the "Add-Ons" drop-down menu in the "Home" of the MATLAB
+Interactive Development Environment (IDE)).
+
+### Recommended
+
+To support a wider range of input formats/methods it is also highly
+recommended to install the [OME Bio-Formats
+Toolbox](https://www.openmicroscopy.org/bio-formats/downloads/). Visit the
+link to download the package. Then unzip it and copy into a location that is
+available on the MATLAB path (e.g., `Documents/MATLAB/Add-Ons`).
+
+If you want to work with data-sets located on an OMERO server, you will also
+need the [OMERO MATLAB language bindings
+plugin](https://www.openmicroscopy.org/omero/downloads/). For servers with
+older versions of OMERO, you may need to be careful to match the plugin
+version with the version of OMERO you are accessing. You can find older
+versions of the plugin [here](https://downloads.openmicroscopy.org/omero/).
+
+### Set-up
+
+To install BABY-GUI, download this repository (either by cloning or
+downloading as zip - see the "<> Code" drop-down menu at the top of this
+page). Then copy the code into a location that is available on the MATLAB path
+(e.g., `Documents/MATLAB/Add-Ons`). 
+
+Alternatively, add a line to your start-up script (normally located in
+`Documents/MATLAB/startup.m`; simply create it if it isn't there):
+
+    ```matlab
+    addpath(genpath('path/to/baby-gui'));
+    ```
+
+## Quick start
+
+To define a new experiment (time-lapse data-set) to work on, run
+`babyCreateGUI;` at the Matlab command line.
+
+To curate the experiment, enter `babyGUI;` at the Matlab command line, and in
+the pop-up window, select the `cExperiment.mat` file that was created using
+the `babyCreateGUI`.
