@@ -83,9 +83,9 @@ page). Then copy the code into a location that is available on the MATLAB path
 Alternatively, add a line to your start-up script (normally located in
 `Documents/MATLAB/startup.m`; simply create it if it isn't there):
 
-    ```matlab
-    addpath(genpath('path/to/baby-gui'));
-    ```
+```matlab
+addpath(genpath('path/to/baby-gui'));
+```
 
 ## Quick start
 
