@@ -417,9 +417,14 @@ classdef babyGUI < handle
             colours = this.trackColours;
         end
         
-        function refreshCellLabels(this)
-            this.cellLabels_val = cell(1,this.ntraps);
-            for t=1:this.ntraps
+        function refreshCellLabels(this,traps)
+            if nargin<2 || isempty(traps)
+                traps = 1:this.ntraps;
+            end
+            if isempty(this.cellLabels_val)
+                this.cellLabels_val = cell(1,this.ntraps);
+            end
+            for t=traps(:)'
                 cellsPresent = arrayfun(@(x) logical(x.trapInfo(t).cellsPresent),...
                     this.cTimelapse.cTimepoint(this.tpInds));
                 tps = this.tpInds(cellsPresent);
@@ -557,6 +562,7 @@ classdef babyGUI < handle
                 this.cTimelapse.cellMothers(nrows+1:this.ntraps,:) = 0;
             end
             
+            this.cellLabels_val = [];
             this.refreshCellLabels;
             if ~isempty(this.cExperiment.metadata) && ...
                     isfield(this.cExperiment.metadata,'logTimes') && ...

@@ -220,7 +220,7 @@ switch modeval
                     this.setContourParams(round(cellPt),abs(dev),...
                         pi-angle(dev),trap,timepoint,NCI);
             end
-            this.refreshCellLabels;
+            this.refreshCellLabels(this.currentTrap);
             this.refreshTracks;
         else %rightclick
             % Select new cell
@@ -236,10 +236,10 @@ switch modeval
             % editing:
             this.saveOriginalOutlines(trap,timepoint);
             logmsg(this.cTimelapse,'Remove cell outline at (%0.0f,%0.0f) in trap %d at time point %d',Cx,Cy,trap,timepoint);
-            cell_to_remove_index = cTimelapse.ReturnNearestCellCentre(timepoint,trap,round(cellPt));
-            cTimelapse.removeCell(timepoint,trap,cell_to_remove_index);
+            cell_to_remove_index = this.cTimelapse.ReturnNearestCellCentre(timepoint,trap,round(cellPt));
+            this.cTimelapse.removeCell(timepoint,trap,cell_to_remove_index);
             this.markCellOutlineEdit(trap,timepoint,[]);
-            this.refreshCellLabels;
+            this.refreshCellLabels(this.currentTrap);
             this.refreshTracks;
         else %rightclick
             % Select new cell
@@ -282,7 +282,7 @@ switch modeval
             % Update the log
             logmsg(this.cTimelapse,'Remove cell with label %d in trap %d',delLabel,trap);
             this.haschanged = true;
-            this.refreshCellLabels;
+            this.refreshCellLabels(this.currentTrap);
             this.refreshTracks;
         else %rightclick
             % Select new cell
@@ -375,7 +375,7 @@ switch modeval
                 logmsg(this.cTimelapse,'Modified cell with label %d in trap %d at timepoint %d to have label %d',...
                     oldLabel,trap,timepoint,newCellLabel);
                 this.haschanged = true;
-                this.refreshCellLabels;
+                this.refreshCellLabels(this.currentTrap);
                 this.refreshTracks;
             else % right click
                 % set active
@@ -451,7 +451,7 @@ switch modeval
                 logmsg(this.cTimelapse,'Modified cell with label %d in trap %d at timepoint %d to have label %d',...
                     oldLabel,trap,timepoint,cellLabel);
                 this.haschanged = true;
-                this.refreshCellLabels;
+                this.refreshCellLabels(this.currentTrap);
                 this.refreshTracks;
             else %rightclick
                 % set active
@@ -472,7 +472,7 @@ switch modeval
             if leftclick
                 this.cTimelapse.cellMothers(trap,trapInfo.cellLabel(foundCellInd)) = cellLabel;
                 this.haschanged = true;
-                this.refreshCellLabels;
+                this.refreshCellLabels(this.currentTrap);
                 this.refreshTracks;
             else
                 %rightclick
@@ -486,7 +486,7 @@ switch modeval
             if leftclick
                 this.cTimelapse.cellMothers(trap,trapInfo.cellLabel(foundCellInd)) = 0;
                 this.haschanged = true;
-                this.refreshCellLabels;
+                this.refreshCellLabels(this.currentTrap);
                 this.refreshTracks;
             else
                 %rightclick
