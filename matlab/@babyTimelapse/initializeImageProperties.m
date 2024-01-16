@@ -46,7 +46,7 @@ end
 
 image = double(image(:,:,1));
 cTimelapse.rawImSize=size(image);
-cTimelapse.imSize = cTimelapse.rawImSize;
+cTimelapse.scaledImSize = cTimelapse.rawImSize;
 shown_figure = false;
 
 if isempty(trapsPresent)
@@ -121,6 +121,12 @@ if isempty(pixel_size)
     pixel_size=str2double(answer{1});
 end
 cTimelapse.pixelSize = pixel_size;
+
+channel = 1;
+if ~isempty(cTimelapse.trapTemplateChannel)
+    channel = cTimelapse.trapTemplateChannel;
+end
+cTimelapse.imSize = size(cTimelapse.applyStandardImageTransformation(image,channel));
 
 if shown_figure
     close(h);
