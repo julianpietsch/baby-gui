@@ -30,20 +30,18 @@ function [trapLocations] = identifyTrapLocationsSingleTP(cTimelapse,timepoint,tr
 
 
 
-if nargin<5 || isempty(trapLocationsToCheck)
+if nargin<4 || isempty(trapLocationsToCheck)
     trapLocationsToCheck='none'; %traps to put through the 'find nearest best point and set trap location to that' mill. if string 'none' does none of them.
 end
 
-if nargin<6 || isempty(trap_prediction_image)
-    channel = 1;
-    
+if nargin<5 || isempty(trap_prediction_image)
+    channel = cTimelapse.trapTemplateChannel;
     trap_prediction_image = generateTrapLocationPredictionImage(cTimelapse,timepoint,channel);
-
 end
 
 cTrap = cTimelapse.cTrapSize;
 
-if nargin<4 || isempty(trapLocations)
+if nargin<3 || isempty(trapLocations)
     [trapLocations] = predictTrapLocations(cTrap,trap_prediction_image); 
 end
 
@@ -77,7 +75,11 @@ function [trapLocations]=predictTrapLocations(cTrap,trap_prediction_image)
 [max_dynamic, imax] = max(trap_prediction_image(:));
 
 val_thresh = 0.05;
-image_thresh = mean(trap_prediction_image(:)) + 5*std(trap_prediction_image(:));
+
+% Start by assuming the image_thresh is the 95th percentile. We will assume
+% that we have at least two traps in the image. We will update the image
+% threshold based on the variability in the maxima.
+image_thresh = quantile(trap_prediction_image(:),0.95);
 
 val_thresh = max(val_thresh,image_thresh);
 
@@ -90,6 +92,8 @@ bY=floor(cTrap.bb_height*ccBounding);
 bX=floor(cTrap.bb_width*ccBounding);
     
 blotting_image = zeros(2*[bY,bX] + 1);
+allmaxima = nan(1,40);
+allmaxima(trap_index) = max_dynamic;
 
 while max_dynamic> val_thresh
     [ypeak, xpeak] = ind2sub(size(trap_prediction_image),imax(1));
@@ -99,8 +103,20 @@ while max_dynamic> val_thresh
     trapLocations(trap_index).xcenter = xpeak;
     trapLocations(trap_index).ycenter = ypeak;
     
+    if sum(trap_prediction_image(:)>0) < numel(blotting_image)
+        % If there are fewer non-zero pixels left than the area of the
+        % blotting images, we should cancel
+        break
+    end
     trap_index=trap_index+1;
-    [max_dynamic, imax] = max(trap_prediction_image(:));   
+    [max_dynamic, imax] = max(trap_prediction_image(:));
+    
+    % Update threshold
+    if numel(allmaxima) < trap_index
+        allmaxima(end+1:end+40) = NaN;
+    end
+    allmaxima(trap_index) = max_dynamic;
+    val_thresh = max(nanmedian(allmaxima) - 2*iqr(allmaxima),image_thresh);
 end
 
 % no traps found
