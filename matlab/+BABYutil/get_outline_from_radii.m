@@ -8,8 +8,8 @@ function [ outline ] = get_outline_from_radii( radii,angles,center,image_size )
 % ACBACKGROUNDFUNCTIONS.PX_PY_TO_LOGICAL
 
 
-[px,py] = ACBackGroundFunctions.get_full_points_from_radii(radii,angles,center,image_size);
-outline = ACBackGroundFunctions.px_py_to_logical( px,py,image_size );
+[px,py] = BABYutil.get_full_points_from_radii(radii,angles,center,image_size);
+outline = BABYutil.px_py_to_logical( px,py,image_size);
 
 end
 
