@@ -4,11 +4,15 @@ classdef posOverviewGUI < MemAware
         fig
         imgax
         slider
-        channel
+        alphascale = 0.8;
+        darkscale = 0.7;
+        showcells = true;
+        fillcells = false;
     end
     
     properties (Dependent)
         ctp
+        channel
     end
     
     properties (Access={?MemAware,?posOverviewGUI})
@@ -18,11 +22,10 @@ classdef posOverviewGUI < MemAware
         
         ntimepoints
         ctp_val = 1
+        channel_val
     end
     
     properties (Constant)
-        alphascale = 0.8;
-        darkscale = 0.7;
         MaxTrackColours = 100;
         maxcachetps = 100;
     end
@@ -38,7 +41,7 @@ classdef posOverviewGUI < MemAware
                 if isempty(channel), channel = 1; end
             end
             
-            this.channel = channel;
+            this.channel_val = channel;
             
             figtitle = 'Segmenting...';
             if isstruct(cTimelapse.metadata) && isfield(cTimelapse.metadata,'date')
@@ -123,6 +126,16 @@ classdef posOverviewGUI < MemAware
         end
         function set.ctp(this,val)
             this.ctp_val = val;
+            this.refreshPosImage;
+        end
+        
+        function val = get.channel(this)
+            val = this.channel_val;
+        end
+        function set.channel(this,val)
+            this.channel_val = val;
+            this.imcache = zeros([this.cTimelapse.imSize,this.ntimepoints],'uint8');
+            this.loadedtps = false(this.ntimepoints,1);
             this.refreshPosImage;
         end
     end
