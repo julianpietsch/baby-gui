@@ -202,7 +202,10 @@ classdef grData < handle
             for c=1:numel(cellNum)
                 linlocal = recurseLineage(cellNum(c),...
                     mothermap(:,trapNum(c),posNum(c)));
-                lineages{c} = indmap(linlocal,trapNum(c),posNum(c))';
+                linlocal(linlocal>size(indmap,1)) = NaN;
+                linfilt = ~isnan(linlocal);
+                linlocal(linfilt) = indmap(linlocal(linfilt),trapNum(c),posNum(c))';
+                lineages{c} = linlocal;
             end
             
             % Expand lineage for each row of each matrix field in M
@@ -267,10 +270,12 @@ classdef grData < handle
             function lineage = recurseLineage(clbl,mothers,lineage)
                 if nargin<3, lineage = []; end
                 if ismember(clbl,lineage)
-                    error('a lineage has a cycle- is a mother to itself');
+                    warning('a lineage has a cycle- is a mother to itself');
+                    lineage = [NaN,lineage];
+                    return
                 end
                 lineage = [clbl,lineage];
-                if isnan(mothers(clbl))
+                if clbl > numel(mothers) || isnan(mothers(clbl))
                     return
                 else
                     lineage = recurseLineage(mothers(clbl),mothers,lineage);
@@ -287,7 +292,7 @@ classdef grData < handle
                 cell_map = zeros(max(pnum),max(tnum),max(cnum),'uint16');
                 cell_map(sub2ind(size(cell_map),pnum,tnum,cnum)) = 1:numel(pnum);
                 this.mother_inds_val = NaN(1,numel(pnum));
-                hasm = ~isnan(mnum) & mnum > 0;
+                hasm = ~isnan(mnum) & mnum > 0 & mnum <= size(cell_map,3);
                 this.mother_inds_val(hasm) = cell_map(sub2ind(size(cell_map),...
                     pnum(hasm),tnum(hasm),mnum(hasm)));
                 if any(this.mother_inds_val(hasm) == 0)

@@ -44,7 +44,7 @@ function timepointIm = returnSingleTimepointRaw(cTimelapse,timepoint,channel)
 % BABYTIMELAPSE.MAKEFILENAMESABSOLUTE,
 % BABYEXPERIMENT.CHANGEROOTDIRALLTIMELAPSES
 
-if isempty(channel) || nargin<3, channel = 1; end
+if nargin<3 || isempty(channel), channel = 1; end
 
 channelName = cTimelapse.channelNames{channel};
 reader = cTimelapse.reader;

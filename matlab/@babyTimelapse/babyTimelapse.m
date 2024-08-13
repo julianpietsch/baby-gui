@@ -408,7 +408,6 @@ classdef babyTimelapse<MemAware
     end
     
     methods (Static)
-        
         function cTimelapse = loadobj(load_structure)
             % cTimelapse = loadobj(load_structure)
             % load function to help maintain back compatability and take
@@ -466,6 +465,7 @@ classdef babyTimelapse<MemAware
             
         end
         
+        cTimelapse = loadFrom(cTimelapse_filepath)
     end
 end
 

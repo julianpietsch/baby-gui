@@ -1,4 +1,4 @@
-function cExperiment = loadFrom(cExperiment_filepath,answer)
+function cExperiment = loadFrom(cExperiment_filepath,update_savedir,copy_disco)
 %BABYEXPERIMENT.LOADFROM Load a cExperiment
 %
 %   cExperiment = BABYEXPERIMENT.LOADFROM() opens a dialog box to
@@ -59,14 +59,14 @@ cExperiment=l1.cExperiment;
 
 cExperiment_path = fileparts(cExperiment_filepath);
 
-if nargin<2 || isempty(answer)
-    answer = 'No';
+if nargin<2 || isempty(update_savedir)
+    update_savedir = 'No';
     if ~any(strcmp({cExperiment_path,fullfile(pwd,cExperiment_path)},...
             cExperiment.saveFolder))
-        answer = questdlg('The save folder from which this file was loaded does not match the save location of the cExperiment. Would you like to make them match? (If you have no idea what this means, press ''yes'')','change saveFolder');
+        update_savedir = questdlg('The save folder from which this file was loaded does not match the save location of the cExperiment. Would you like to make them match? (If you have no idea what this means, press ''yes'')','change saveFolder');
     end
 end
-switch answer
+switch update_savedir
     case 'Yes'
         cExperiment.saveFolder = cExperiment_path;
         if ~was_disco
@@ -77,19 +77,24 @@ switch answer
 end
 
 if was_disco
-    copy_expt = questdlg(...
-        ['You are loading an old DISCO experiment in the new BABY format.', ...
-        'Deprecated data will be lost. Do you want to save in a new ', ...
-        'location?'],'Deprecation warning');
-    switch copy_expt
+    if nargin<2, copy_disco = ''; end
+    if isempty(copy_disco)
+        copy_disco = questdlg(...
+            ['You are loading an old DISCO experiment in the new BABY format.', ...
+            'Deprecated data will be lost. Do you want to save in a new ', ...
+            'location?'],'Deprecation warning');
+    end
+    switch copy_disco
         case 'Yes'
             cExperiment.copyExperiment;
         case 'No'
-            if strcmp(answer,'Yes')
+            if strcmp(update_savedir,'Yes')
                 cExperiment.saveExperiment;
             end
         case 'Cancel'
             error('User cancelled loading cExperiment');
+        otherwise
+            error('Unrecognised value for "copy_disco" arg');
     end
 end
 
