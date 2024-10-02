@@ -91,13 +91,17 @@ end
 end
 
 function [ylocs,cAreas,cLengths,lb,ub]=get_features(trapInfo,inverted)
-ncells = numel(trapInfo.cell);
+if trapInfo.cellsPresent
+    ncells = numel(trapInfo.cell);
+else
+    ncells = 0;
+end
 ylocs = NaN(1,ncells);
 cAreas = NaN(1,ncells);
 cLengths = NaN(1,ncells);
 lb = NaN(1,ncells);
 ub = NaN(1,ncells);
-for c=1:numel(trapInfo.cell)
+for c=1:ncells
     seg = imfill(full(trapInfo.cell(c).segmented),'holes');
     if ~any(seg(:))
         ylocs(c) = Inf;
