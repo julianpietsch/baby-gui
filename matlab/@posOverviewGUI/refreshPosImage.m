@@ -4,7 +4,8 @@ tp = this.ctp;
 
 if ~this.loadedtps(tp), this.addTP(tp); end
 
-posim = this.alphascale*double(this.imcache(:,:,tp))/255;
+alpha = this.alphascale;
+posim = alpha*double(this.imcache(:,:,tp))/255;
 
 imW = size(posim,2); imH = size(posim,1);
 
@@ -26,6 +27,11 @@ if this.cTimelapse.trapsPresent
 end
 
 posim = posim(:,:,ones(3,1));
+
+if ~this.showcells
+    this.imgax.Children.CData = posim;
+    return
+end
 
 % Overlay segmentation masks on pos image
 trapInfoArray = this.cTimelapse.cTimepoint(tp).trapInfo;
@@ -68,13 +74,20 @@ for ti=1:length(trapInfoArray)
     cellinds = 1:length(clabs);
     trapColours = this.trackColours(...
         mod(cellCounter+clabs-1,this.MaxTrackColours)+1,:);
+    
+    if this.fillcells
+        for c=cellinds
+            segims{c} = imfill(full(segims{c}),'holes');
+        end
+    end
 
     % refreshPosImage sets this.posIm to be HxWx3
     tIm = posim(yinds,xinds,:);
     for col=1:3
         sIm = tIm(:,:,col);
         for c=cellinds
-            sIm(segims{c}) = trapColours(c,col)*sqrt(sIm(segims{c}));
+            sIm(segims{c}) = alpha*trapColours(c,col) + ...
+                (1-alpha)*sqrt(sIm(segims{c}));
         end
         tIm(:,:,col) = sIm;
     end
