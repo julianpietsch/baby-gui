@@ -465,6 +465,25 @@ switch modeval
             this.cTimelapse.cellsToPlot(trap,trapInfo.cellLabel(foundCellInd)) = leftclick;
             this.haschanged = true;
         end
+
+    case 'selectlineages'
+        [~,foundCellInd] = nearestCell;
+        if ~isempty(foundCellInd)
+            % Ensure that cellsToPlot and cellMothers have the same label size
+            nlbl_toplot = size(this.cTimelapse.cellsToPlot,2);
+            nlbl_mother = size(this.cTimelapse.cellMothers,2);
+            if nlbl_toplot < nlbl_mother
+                this.cTimelapse.cellsToPlot(:,end+1:nlbl_mother) = 0;
+            elseif nlbl_mother < nlbl_toplot
+                this.cTimelapse.cellMothers(:,end+1:nlbl_toplot) = 0;
+            end
+
+            % First select all daughter cells
+            rootLabel = trapInfo.cellLabel(foundCellInd);
+            lineageLabels = followLineages(rootLabel);
+            this.cTimelapse.cellsToPlot(trap,lineageLabels) = leftclick;
+            this.haschanged = true;
+        end
         
     case 'setdaughter'
         [foundCell,foundCellInd] = nearestCell;
@@ -507,6 +526,14 @@ end
         cellInd = this.cTimelapse.ReturnNearestCellCentre(timepoint,trap,cellPt);
         if ~isempty(cellInd)
             cellNum = find(this.cellLabels{trap}==trapInfo.cellLabel(cellInd),1);
+        end
+    end
+
+    function lineages = followLineages(labels)
+        mothers = full(this.cTimelapse.cellMothers(trap,:));
+        lineages = union(labels,find(ismember(mothers,labels)));
+        if numel(labels) < numel(lineages)
+            lineages = followLineages(lineages);
         end
     end
 
