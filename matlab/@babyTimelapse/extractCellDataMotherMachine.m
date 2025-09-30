@@ -261,6 +261,11 @@ for chi=1:numel(channels)
     
     extractedData(chi).bgdvert=sparse(zeros(numCells,ntps));
     extractedData(chi).imBackground=sparse(zeros(numCells,ntps));
+    extractedData(chi).bgdleft=sparse(zeros(numCells,ntps));
+    extractedData(chi).bgdright=sparse(zeros(numCells,ntps));
+
+    extractedData(chi).pillmean=sparse(zeros(numCells,ntps));
+    extractedData(chi).pillmedian=sparse(zeros(numCells,ntps));
     
     extractedData(chi).xloc=sparse(zeros(numCells,ntps));
     extractedData(chi).yloc=sparse(zeros(numCells,ntps));
@@ -274,6 +279,16 @@ se_dilate=strel('disk',ndilate);
 
 bbH = cTimelapse.cTrapSize.bb_height;
 bbW = cTimelapse.cTrapSize.bb_width;
+
+trapLocations = cTimelapse.cTimepoint(timepoints(1)).trapLocations;
+trenchspacing = mean(diff(sort([trapLocations.xcenter])));
+vertpad = round(0.5 * trenchspacing);
+filtwidth = round(trenchspacing/6) * 2 + 1;
+trenchspacing = round(trenchspacing);
+
+pillhw = 2*0.16/px_size;
+theta = linspace(0,2*pi,round(2*pi*pillhw)); theta = theta(1:end-1);
+circle_poly = [pillhw*cos(theta);pillhw*sin(theta)]';
 
 % rearranged so that each cell is filled in at the same time at each
 % timepoint, this allows parfor use and reduces the extraction time
@@ -298,6 +313,7 @@ for t=1:numel(timepoints)
     end
             
     trapInfo = cTimelapse.cTimepoint(timepoint).trapInfo;
+    trapLocations = cTimelapse.cTimepoint(timepoint).trapLocations;
     
     cellLocAll = false([cTimelapse.trapImSize,numel(trap)]);
     cellLocAllInner = false([cTimelapse.trapImSize,numel(trap)]);
@@ -331,7 +347,19 @@ for t=1:numel(timepoints)
     end
     cellLocAllCellsBkg = any(cellLocTrapCellsBkg,3);
     
-    trapInfo=cTimelapse.cTimepoint(timepoint).trapInfo;
+    % Regress trench centre relative to trap using cell centres from all traps
+    trapXoffsets = [trapLocations.xcenter]-bbW-1;
+    trapYoffsets = [trapLocations.ycenter]-bbH-1;
+    cellCentres = cell(1,ntraps);
+    for ti=1:ntraps
+        if ~trapInfo(ti).cellsPresent, continue; end
+        cellCentres_ti = vertcat(trapInfo(ti).cell.cellCenter);
+        cellCentres_ti(:,2) = cellCentres_ti(:,2)+trapYoffsets(ti);
+        cellCentres{ti} = cellCentres_ti;
+    end
+    cellCentres = vertcat(cellCentres{:});
+    trench_centre_mdl = polyfit(cellCentres(:,2),cellCentres(:,1),1);
+
     for chi=1:numel(channels) % channel index
         chname = channels{chi};
         rawchi = find(strcmp(uniqueChannels,chname),1);
@@ -400,7 +428,6 @@ for t=1:numel(timepoints)
         
         % Calculate background excluding all selected traps
         tpBgdImg = tpImg;
-        trapLocations = cTimelapse.cTimepoint(timepoint).trapLocations;
         for ti=1:numel(trapLocations)
             trap_y = round(trapLocations(ti).ycenter);
             trap_x = round(trapLocations(ti).xcenter);
@@ -410,6 +437,26 @@ for t=1:numel(timepoints)
         end
         extractedData(chi).nonTrapBackground(timepoint) = nanmedian(tpBgdImg(:));
         
+        % Calculate spatially-dependent background from minimum between trenches
+        tpImg_rwmedfilt = medfilt1(tpImg,filtwidth,[],2);
+        bndbgds = NaN(size(tpImg,1),ntraps+1);
+        [ordered_trapX,xorder] = sort(trapXoffsets);
+        for r=1:size(tpImg,1)
+            centre_offset = polyval(trench_centre_mdl,r);
+            trench_centres = round(ordered_trapX+centre_offset);
+            trench_centres = min(max(trench_centres,1),size(tpImg,2));
+            leftbnd = max(1,trench_centres(1)-trenchspacing);
+            rightbnd = min(size(tpImg,2),trench_centres(end)+trenchspacing);
+            bnds = [leftbnd,trench_centres,rightbnd];
+            for ti=1:ntraps+1
+                bndbgds(r,ti) = min(tpImg_rwmedfilt(r,bnds(ti):bnds(ti+1)));
+            end
+        end
+        bndbgds = medfilt1(bndbgds,filtwidth,[],1);
+        [~,xorder] = sort(xorder);
+        bndbgds_left = bndbgds(:,xorder);
+        bndbgds_right = bndbgds(:,xorder+1);
+
         % Split into traps
         trapStack = cTimelapse.returnTrapsFromImage(tpImg,timepoint);
         assert(size(trapStack,3) == ntraps,...
@@ -540,7 +587,8 @@ for t=1:numel(timepoints)
 %                     mean(log(cellFL_blur_bgdsub(valid)));
 %             end
             
-            bgdLoc = ~cellLocTrapCellsBkgOuter(:,:,find(trapNums==trap(c),1));
+            tn = find(trapNums==trap(c),1);
+            bgdLoc = ~cellLocTrapCellsBkgOuter(:,:,tn);
             bgdImg = trapImage;
             bgdImg(~bgdLoc) = NaN;
             vbgd = medfilt1(median(bgdImg,2,'omitnan'),11,'omitnan','truncate');
@@ -551,7 +599,45 @@ for t=1:numel(timepoints)
             bgdFL = bgdFL(~isnan(bgdFL(:)));
             if isempty(bgdFL), bgdFL = trapImage; end
             extractedData(chi).imBackground(c,timepoint)=median(bgdFL(:));
+
+            % Get region properties for background and pill-shaped mask
+            rp = regionprops(cellLoc,'BoundingBox','Area','MajorAxisLength',...
+                'Centroid','Orientation');
+            if numel(rp)>1
+                % Pick region with largest area if there are multiple
+                [~,largest_area] = max([rp.Area]);
+                rp = rp(largest_area);
+            end
+
+            % Spatially-dependent background estimation
+            lb = max(1,round(trapYoffsets(trap(c))+rp.BoundingBox(2)-vertpad));
+            ub = min(size(bndbgds,1),...
+                round(trapYoffsets(trap(c))+sum(rp.BoundingBox([2,4]))+vertpad));
+            extractedData(chi).bgdleft(c,timepoint) = mean(bndbgds_left(lb:ub,trap(c)));
+            extractedData(chi).bgdright(c,timepoint) = mean(bndbgds_right(lb:ub,trap(c)));
             
+            % Derive a pill-shaped mask based on fitted ellipsoid
+            hh = rp.MajorAxisLength*0.5;
+            x = rp.Centroid(1); y = rp.Centroid(2);
+            [W,H] = size(cellLoc);
+            if hh <= pillhw
+                cmask = poly2mask(circle_poly(:,1)+x,circle_poly(:,2)+y,W,H);
+            else
+                rot = -rp.Orientation/360*2*pi;
+                rhh = hh-pillhw;
+                ux = cos(rot)*rhh+x; uy = sin(rot)*rhh+y;
+                lx = cos(rot+pi)*rhh+x; ly = sin(rot+pi)*rhh+y;
+                cmask = poly2mask(circle_poly(:,1)+ux,circle_poly(:,2)+uy,W,H);
+                cmask = cmask | poly2mask(circle_poly(:,1)+lx,circle_poly(:,2)+ly,W,H);
+                rect_poly = [-pillhw,rhh;pillhw,rhh;pillhw,-rhh;-pillhw,-rhh];
+                rot = rot + pi*0.5;
+                rect_poly = rect_poly*[cos(rot),sin(rot);-sin(rot),cos(rot)];
+                cmask = cmask | poly2mask(rect_poly(:,1)+x,rect_poly(:,2)+y,W,H);
+            end
+            pillFL = trapImage(cmask);
+            extractedData(chi).pillmean(c,timepoint) = mean(pillFL);
+            extractedData(chi).pillmedian(c,timepoint) = median(pillFL);
+
             % information common to all channels (basically
             % shape information) is stored only in the
             % channel 1 structure.

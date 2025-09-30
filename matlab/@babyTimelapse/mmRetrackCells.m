@@ -38,6 +38,9 @@ ip.addParameter('tol',[0.2,2],@(x) isvector(x) && isnumeric(x) && numel(x)==2 &&
 ip.addParameter('min_area',50,@(x) isscalar(x) && isnumeric(x));
 ip.addParameter('max_gr',0.5,@(x) isscalar(x) && isnumeric(x));
 ip.addParameter('Nlag',20,@(x) isscalar(x) && isnumeric(x) && round(x)==x && x>0);
+ip.addParameter('ythresh',[0,inf],@(x) isvector(x) && isnumeric(x) && ...
+    numel(x)==2 && all(round(x)==x) && all(x>0));
+ip.addParameter('phasethresh',[],@(x) isempty(x) || (isscalar(x) && isnumeric(x)));
 ip.parse(varargin{:});
 
 tol = ip.Results.tol;
@@ -45,6 +48,8 @@ max_gr = ip.Results.max_gr;
 min_area = ip.Results.min_area;
 min_area = min_area*0.065/cTimelapse.pixelSize;
 Nlag = ip.Results.Nlag;
+ythresh = ip.Results.ythresh;
+phasethresh = ip.Results.phasethresh;
 
 % Organise input data for parallelisation
 trapdata = cell(1,numel(traps));
@@ -68,11 +73,40 @@ for ti=1:numel(traps)
     mothers{ti} = cTimelapse.cellMothers(trap,:);
 end
 
+if ~isempty(phasethresh)
+    channel = find(strcmp(cTimelapse.channelNames,cTimelapse.babyBrain.channel),1);
+    for t=1:numel(timepoints)
+        fprintf('.')
+        if mod(t,50) == 0, fprintf(' %d\n',t); end
+        trapIms = cTimelapse.returnTrapsTimepoint(traps,timepoints(t),channel);
+        for ti=1:numel(traps) %parallel
+            trapInfo = trapdata{ti}{t};
+            trapdata{ti}{t}.phasemeans = [];
+            if ~trapInfo.cellsPresent, continue; end
+            ncells = numel(trapInfo.cell);
+            phasemeans = NaN(1,ncells);
+            for c=1:ncells
+                seg = imfill(full(trapInfo.cell(c).segmented),'holes');
+                if ~any(seg(:)), phasemeans(c) = Inf; end
+                rp = regionprops(seg,trapIms(:,:,ti),'Area','MeanIntensity');
+                if numel(rp)>1
+                    % Pick region with largest area if there are multiple
+                    [~,largest_area] = max([rp.Area]);
+                    rp = rp(largest_area);
+                end
+                phasemeans(c) = rp.MeanIntensity;
+            end
+            trapdata{ti}{t}.phasemeans = phasemeans;
+        end
+    end
+    fprintf('\n');
+end
+
 cellLabels = cell(1,numel(traps));
 parfor ti=1:numel(traps)
     [cellLabels{ti},mothers{ti}] = track_cells(trapdata{ti},mothers{ti},...
         new_lbls{ti},overwritefirst,inverted,gr_init,...
-        tol,max_gr,min_area,Nlag);
+        tol,max_gr,min_area,Nlag,ythresh,phasethresh);
 end
 
 maxcells = max(cellfun(@numel,mothers));
@@ -131,8 +165,25 @@ end
 if inverted, ylocs = -ylocs; end
 end
 
+function debris=find_debris(cAreas,ub,lb,phasemeans,inverted,min_area,...
+    ythresh,phasethresh)
+% Ignore any outlines under the minimum size threshold
+debris = cAreas<min_area;
+% Ignore any outlines outside the y thresholds
+if inverted
+    debris = debris | -ub>ythresh(2) | -lb<ythresh(1);
+else
+    debris = debris | lb>ythresh(2) | ub<ythresh(1);
+end
+% Ignore any outlines exceeding the phase threshold
+if ~isempty(phasethresh)
+    debris = debris | phasemeans>phasethresh;
+end
+end
+
 function [cellLabels,mothers]=track_cells(trapInfos,mothers,new_lbl,...
-    overwritefirst,inverted,gr_init,tol,max_gr,min_area,Nlag)
+    overwritefirst,inverted,gr_init,tol,max_gr,min_area,Nlag,ythresh,...
+    phasethresh)
 
 cellLabels = cell(1,numel(trapInfos));
 
@@ -143,10 +194,12 @@ ltm = diff(log(tol))/2; ltb = ltm-log(tol(2));
 trapInfo = trapInfos{1};
 [ylocs,cAreas,cLengths,lb,ub]=get_features(trapInfo,inverted);
 
+debris_unsort = find_debris(cAreas,ub,lb,trapInfo.phasemeans,...
+    inverted,min_area,ythresh,phasethresh);
+
 % Label in order of y index starting from base of well (descending)
 [~,yOrder] = sort(-ylocs);
-% Ignore any outlines under the minimum size threshold
-yOrder = yOrder(cAreas(yOrder)>=min_area);
+yOrder = yOrder(~debris_unsort(yOrder));
 
 % Initialise starting state
 l_state = cLengths(yOrder);
@@ -175,23 +228,24 @@ end
 cellLabels{1} = cLabels;
 
 lbl_state = cLabels(yOrder);
-debris = cAreas<min_area;
-Nd = sum(debris);
+Nd = sum(debris_unsort);
 debris_state_labels = NaN(1,Nd+20);
 debris_state_ylocs = NaN(1,Nd+20);
-debris_state_labels(1:Nd) = cLabels(debris);
-debris_state_ylocs(1:Nd) = ylocs(debris);
+debris_state_labels(1:Nd) = cLabels(debris_unsort);
+debris_state_ylocs(1:Nd) = ylocs(debris_unsort);
 
 % Loop over all subsequent time points
 for t=2:numel(trapInfos)
     % Obtain features for this time point
     trapInfo = trapInfos{t};
     [ylocs,cAreas,cLengths,lb,ub]=get_features(trapInfo,inverted);
-    
+    debris_unsort = find_debris(cAreas,ub,lb,trapInfo.phasemeans,...
+        inverted,min_area,ythresh,phasethresh);
+
     % Work in order of y position
     [~,yOrder] = sort(-ylocs);
-    % Ignore any outlines under the minimum size threshold
-    yOrder = yOrder(cAreas(yOrder)>=min_area);
+    % Ignore any debris
+    yOrder = yOrder(~debris_unsort(yOrder));
     
     % If there are no outlines (or none over the minimum size
     % threshold), simply assign any small objects as new cells/debris
@@ -444,7 +498,7 @@ for t=2:numel(trapInfos)
     
     % Assign cells under min_area to 'debris' tracks, which essentially
     % find closest yloc from previous time points:
-    debris = find(cAreas<min_area);
+    debris = find(debris_unsort);
     assert(all(cLabels(debris)==0));
     Nd = numel(debris);
     if Nd>numel(debris_state_labels)
