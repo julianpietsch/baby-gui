@@ -366,7 +366,6 @@ classdef babyTimelapse<MemAware
                 '"babyBrain" must be specified as a "BabyBrain" object');
             % Copy only the configuration
             cTimelapse.babyBrain.copy_channel_map(val);
-            cTimelapse.babyBrain.updateServerDetails(true);
             cTimelapse.babyBrain.config = val.config;
         end
         

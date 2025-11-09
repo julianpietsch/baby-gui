@@ -136,7 +136,8 @@ classdef BabyBrain < handle
                 % Need a temporary config to change the url
                 current_config = this.config_val;
                 this.config_val = BabyConfig('url',val.url);
-                this.updateServerDetails;
+                % Force an update since URL has changed
+                this.updateServerDetails(true);
                 this.config_val = current_config;
             end
             
