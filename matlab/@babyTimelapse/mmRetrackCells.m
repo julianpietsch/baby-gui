@@ -194,7 +194,9 @@ ltm = diff(log(tol))/2; ltb = ltm-log(tol(2));
 trapInfo = trapInfos{1};
 [ylocs,cAreas,cLengths,lb,ub]=get_features(trapInfo,inverted);
 
-debris_unsort = find_debris(cAreas,ub,lb,trapInfo.phasemeans,...
+phasemeans = [];
+if ~isempty(phasethresh), phasemeans = trapInfo.phasemeans; end
+debris_unsort = find_debris(cAreas,ub,lb,phasemeans,...
     inverted,min_area,ythresh,phasethresh);
 
 % Label in order of y index starting from base of well (descending)
@@ -239,7 +241,8 @@ for t=2:numel(trapInfos)
     % Obtain features for this time point
     trapInfo = trapInfos{t};
     [ylocs,cAreas,cLengths,lb,ub]=get_features(trapInfo,inverted);
-    debris_unsort = find_debris(cAreas,ub,lb,trapInfo.phasemeans,...
+    if ~isempty(phasethresh), phasemeans = trapInfo.phasemeans; end
+    debris_unsort = find_debris(cAreas,ub,lb,phasemeans,...
         inverted,min_area,ythresh,phasethresh);
 
     % Work in order of y position
